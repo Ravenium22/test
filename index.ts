@@ -255,7 +255,7 @@ const commands = [
         .addChoices(
           { name: 'Winning', value: 'winning' },
           { name: 'Losing', value: 'losing' }
-        )),
+        ))
     .addIntegerOption(option =>
       option.setName('wl_threshold')
         .setDescription('MOOLA threshold for WL role')
@@ -293,7 +293,7 @@ const commands = [
   new SlashCommandBuilder()
     .setName("warstatus")
     .setDescription("Check the current war status"),
-    new SlashCommandBuilder()
+  new SlashCommandBuilder()
     .setName("leaderboard")
     .setDescription("View the leaderboard")
     .addStringOption(option =>
