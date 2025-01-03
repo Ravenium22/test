@@ -144,9 +144,6 @@ function createCSV(data: any[], includeDiscordId: boolean = false, guild: Guild)
   return header + content;
 }
 
-  return header + content;
-}
-
 // New function to save CSV file
 async function saveCSV(content: string, filename: string) {
   const __filename = fileURLToPath(import.meta.url);
