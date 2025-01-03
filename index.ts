@@ -234,17 +234,17 @@ async function updateRoles(
   console.log(`Role update process completed for ${teamType} team.`);
 }
 
-// Improve the cron job scheduling
-const roleUpdateJob = scheduleJob("0 */6 * * *", async () => {
-  console.log("Running scheduled role update job...");
-  const guild = client.guilds.cache.get("1228994421966766141"); // Replace with your actual guild ID
-  if (guild) {
-    await updateRoles(guild);
-    console.log("Scheduled role update completed");
-  } else {
-    console.error("Guild not found for scheduled role update");
-  }
-});
+// */ Improve the cron job scheduling
+//   const roleUpdateJob = scheduleJob("0 */6 * * *", async () => {
+//   console.log("Running scheduled role update job...");
+//   const guild = client.guilds.cache.get("1228994421966766141"); // Replace with your actual guild ID
+//   if (guild) {
+//     await updateRoles(guild);
+//     console.log("Scheduled role update completed");
+//   } else {
+//     console.error("Guild not found for scheduled role update");
+//   }
+// });
 
 // Define your commands
 const commands = [
