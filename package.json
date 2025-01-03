@@ -6,6 +6,7 @@
   "description": "",
   "scripts": {
     "dev": "nodemon --exec 'pnpm tsx index.ts'",
+    "start": "tsx index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
