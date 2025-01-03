@@ -674,9 +674,10 @@ client.on("interactionCreate", async (interaction) => {
       const itemsPerPage = 10;
       const skip = (page - 1) * itemsPerPage;
 
+      // Build the query
       let query = supabase
         .from("users")
-        .select("discord_id, points, team")
+        .select("discord_id, points, team", { count: "exact" })
         .not("discord_id", "in", `(${EXCLUDED_USER_IDS.join(",")})`)
         .order("points", { ascending: false });
 
@@ -684,22 +685,20 @@ client.on("interactionCreate", async (interaction) => {
         query = query.eq("team", teamOption);
       }
 
-      // Get total count for pagination
-      const { count } = await query.count();
-      if (!count) {
-        await interaction.reply("No users found.");
-        return;
-      }
-
-      // Get paginated results
-      const { data: leaderboardData, error } = await query
+      // Get the data with count
+      const { data: leaderboardData, count, error } = await query
         .range(skip, skip + itemsPerPage - 1);
 
       if (error) {
         throw error;
       }
 
-      const totalPages = Math.ceil(count / itemsPerPage);
+      if (!leaderboardData || leaderboardData.length === 0) {
+        await interaction.reply("No users found.");
+        return;
+      }
+
+      const totalPages = Math.ceil((count || 0) / itemsPerPage);
 
       const leaderboardEmbed = new EmbedBuilder()
         .setTitle(`🏆 ${teamOption === "all" ? "" : teamOption + " "}Leaderboard - Page ${page}/${totalPages}`)
