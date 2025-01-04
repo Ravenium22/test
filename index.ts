@@ -504,13 +504,13 @@ client.on("interactionCreate", async (interaction) => {
       .eq("discord_id", userId)
       .single();
 
-    if (userData) {
-      await interaction.reply(
-        content: `You have already linked your account. Your linked account: \`${maskAddress(userData.address)}\``,
-        ephemeral: true
-      );
-      return;
-    }
+      if (userData) {
+        await interaction.reply({
+          content: `You have already linked your account. Your linked account: \`${maskAddress(userData.address)}\``,
+          ephemeral: true
+        });
+        return;
+      }
 
     const { data, error } = await supabase
       .from("tokens")
