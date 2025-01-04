@@ -129,7 +129,7 @@ async function getTopPlayers(team: string, limit: number) {
 }
 
 // New function to create CSV content
-function createCSV(data: any[], includeDiscordId: boolean = false, guild: Guild) {
+async function createCSV(data: any[], includeDiscordId: boolean = false, guild: Guild) {
   const header = includeDiscordId
     ? "discord_id,address,points,wl_role,ml_role,free_mint_role\n"
     : "address,points,wl_role,ml_role,free_mint_role\n";
@@ -137,7 +137,8 @@ function createCSV(data: any[], includeDiscordId: boolean = false, guild: Guild)
   const WL_WINNER_ROLE_ID = "1264963781419597916";
   const ML_WINNER_ROLE_ID = "1267532607491407933";
 
-  const content = data.map(async (user) => {
+  // Use Promise.all to wait for all member fetches
+  const rows = await Promise.all(data.map(async (user) => {
     const member = await guild.members.fetch(user.discord_id).catch(() => null);
     const hasWL = member?.roles.cache.has(WHITELIST_ROLE_ID) || member?.roles.cache.has(WL_WINNER_ROLE_ID) ? "Y" : "N";
     const hasML = member?.roles.cache.has(MOOLALIST_ROLE_ID) || member?.roles.cache.has(ML_WINNER_ROLE_ID) ? "Y" : "N";
@@ -146,9 +147,9 @@ function createCSV(data: any[], includeDiscordId: boolean = false, guild: Guild)
     return includeDiscordId
       ? `${user.discord_id},${user.address},${user.points},${hasWL},${hasML},${hasFreeMint}`
       : `${user.address},${user.points},${hasWL},${hasML},${hasFreeMint}`;
-  }).join("\n");
+  }));
 
-  return header + content;
+  return header + rows.join("\n");
 }
 
 // New function to save CSV file
