@@ -80,6 +80,10 @@ function hasAdminRole(member: GuildMember | APIInteractionGuildMember | null) {
   }
   return false;
 }
+export const maskAddress = (address: string) => {
+  if (!address || address.length < 6) return address;
+  return `${address.slice(0, 2)}...${address.slice(-4)}`;
+};
 // Excludements for leaderboard
 const EXCLUDED_USER_IDS = [
   "649377665496776724", // abarat
@@ -502,7 +506,8 @@ client.on("interactionCreate", async (interaction) => {
 
     if (userData) {
       await interaction.reply(
-        `You have already linked your account. Your linked account: \`${userData.address}\``
+        content: `You have already linked your account. Your linked account: \`${maskAddress(userData.address)}\``,
+        ephemeral: true
       );
       return;
     }
@@ -714,7 +719,22 @@ client.on("interactionCreate", async (interaction) => {
       const itemsPerPage = 10;
       const skip = (page - 1) * itemsPerPage;
 
-      // Build the query
+      // Get user's rank first
+      let rankQuery = supabase
+        .from("users")
+        .select("discord_id, points, team")
+        .not("discord_id", "in", `(${EXCLUDED_USER_IDS.join(",")})`)
+        .order("points", { ascending: false });
+
+      if (teamOption !== "all") {
+        rankQuery = rankQuery.eq("team", teamOption);
+      }
+
+      const { data: allUsers } = await rankQuery;
+      const userRank = allUsers?.findIndex(user => user.discord_id === interaction.user.id) ?? -1;
+      const userData = allUsers?.[userRank];
+
+      // Get paginated leaderboard data
       let query = supabase
         .from("users")
         .select("discord_id, points, team", { count: "exact" })
@@ -725,7 +745,6 @@ client.on("interactionCreate", async (interaction) => {
         query = query.eq("team", teamOption);
       }
 
-      // Get the data with count
       const { data: leaderboardData, count, error } = await query
         .range(skip, skip + itemsPerPage - 1);
 
@@ -741,28 +760,52 @@ client.on("interactionCreate", async (interaction) => {
       const totalPages = Math.ceil((count || 0) / itemsPerPage);
 
       const leaderboardEmbed = new EmbedBuilder()
-        .setTitle(`🏆 ${teamOption === "all" ? "" : teamOption + " "}Leaderboard - Page ${page}/${totalPages}`)
         .setColor(teamOption === "bullas" ? "#22C55E" : teamOption === "beras" ? "#EF4444" : "#FFD700");
 
-      for (const [index, entry] of leaderboardData.entries()) {
-        const user = await client.users.fetch(entry.discord_id as string);
-        const position = skip + index + 1;
-        const medal = position === 1 ? "🥇" : position === 2 ? "🥈" : position === 3 ? "🥉" : "";
-
+      // Add user's rank at the top
+      if (userRank !== -1 && userData) {
         leaderboardEmbed.addFields({
-          name: `${position}. ${user.username} ${medal}`,
-          value: `🍯 ${entry.points} mL${entry.team ? ` | ${entry.team === "bullas" ? "🐂" : "🐻"}` : ""}`,
-          inline: false,
+          name: `Your Rank`,
+          value: `${userRank + 1}. ${userData.team === "bullas" ? "🐂" : "🐻"} ${userData.team.charAt(0).toUpperCase() + userData.team.slice(1)} Boss`,
+          inline: false
         });
       }
+
+      // Add Leaderboard section
+      leaderboardEmbed.addFields({
+        name: "🏆 Leaderboard",
+        value: leaderboardData.map((entry, index) => {
+          const position = skip + index + 1;
+          return `${position}. ${entry.team === "bullas" ? "🐂" : "🐻"} ${entry.points.toLocaleString()} mL`;
+        }).join('\n'),
+        inline: false
+      });
 
       if (totalPages > 1) {
         leaderboardEmbed.setFooter({ 
-          text: `Use /leaderboard ${teamOption} page:[1-${totalPages}] to view other pages`
+          text: `Page ${page}/${totalPages}`
         });
       }
 
-      await interaction.reply({ embeds: [leaderboardEmbed] });
+      // Create pagination buttons
+      const row = new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`prev_${teamOption}_${page}`)
+            .setLabel('Previous')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(page <= 1),
+          new ButtonBuilder()
+            .setCustomId(`next_${teamOption}_${page}`)
+            .setLabel('Next')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(page >= totalPages)
+        );
+
+      await interaction.reply({ 
+        embeds: [leaderboardEmbed],
+        components: [row]
+      });
     } catch (error) {
       console.error("Error handling leaderboard command:", error);
       await interaction.reply(
@@ -1097,7 +1140,41 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.message.delete();
   }
 });
+// Add this with your other button handlers
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isButton()) return;
 
+  const [action, teamOption, currentPage] = interaction.customId.split('_');
+  if (action !== 'prev' && action !== 'next') return;
+
+  // Only allow the user who ran the command to use the buttons
+  if (interaction.message.interaction?.user.id !== interaction.user.id) {
+    await interaction.reply({
+      content: 'Only the user who ran this command can use these buttons.',
+      ephemeral: true
+    });
+    return;
+  }
+
+  const newPage = action === 'next' 
+    ? parseInt(currentPage) + 1 
+    : parseInt(currentPage) - 1;
+
+  // Create a new interaction with updated page
+  const newInteraction = {
+    commandName: 'leaderboard',
+    options: {
+      getString: (name: string, required: boolean) => name === 'team' ? teamOption : null,
+      getInteger: (name: string) => name === 'page' ? newPage : null
+    }
+  };
+
+  // Delete the old message
+  await interaction.message.delete();
+
+  // Execute the leaderboard command with new page
+  await handleLeaderboard(newInteraction);
+});
 client.login(discordBotToken);
 
 /*
