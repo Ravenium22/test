@@ -762,30 +762,33 @@ client.on("interactionCreate", async (interaction) => {
       const leaderboardEmbed = new EmbedBuilder()
         .setColor(teamOption === "bullas" ? "#22C55E" : teamOption === "beras" ? "#EF4444" : "#FFD700");
 
-      // Add user's rank at the top
+      // Add user's rank at the top with username
       if (userRank !== -1 && userData) {
         leaderboardEmbed.addFields({
-          name: `Your Rank`,
-          value: `${userRank + 1}. ${userData.team === "bullas" ? "🐂" : "🐻"} ${userData.team.charAt(0).toUpperCase() + userData.team.slice(1)} Boss`,
+          name: "Your Rank",
+          value: `${userRank + 1}. ${userData.team === "bullas" ? "🐂" : "🐻"} ${interaction.user.username} • ${userData.points.toLocaleString()} mL`,
           inline: false
         });
       }
 
-      // Add Leaderboard section
+      // Add Leaderboard section with usernames
+      const leaderboardEntries = await Promise.all(
+        leaderboardData.map(async (entry, index) => {
+          const user = await client.users.fetch(entry.discord_id);
+          const position = skip + index + 1;
+          return `${position}. ${entry.team === "bullas" ? "🐂" : "🐻"} ${user.username} • ${entry.points.toLocaleString()} mL`;
+        })
+      );
+
       leaderboardEmbed.addFields({
         name: "🏆 Leaderboard",
-        value: leaderboardData.map((entry, index) => {
-          const position = skip + index + 1;
-          return `${position}. ${entry.team === "bullas" ? "🐂" : "🐻"} ${entry.points.toLocaleString()} mL`;
-        }).join('\n'),
+        value: leaderboardEntries.join('\n'),
         inline: false
       });
 
-      if (totalPages > 1) {
-        leaderboardEmbed.setFooter({ 
-          text: `Page ${page}/${totalPages}`
-        });
-      }
+      leaderboardEmbed.setFooter({ 
+        text: `Page ${page}/${totalPages}`
+      });
 
       // Create pagination buttons
       const row = new ActionRowBuilder<ButtonBuilder>()
@@ -1140,7 +1143,6 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.message.delete();
   }
 });
-// Add this with your other button handlers
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
@@ -1160,20 +1162,104 @@ client.on('interactionCreate', async (interaction) => {
     ? parseInt(currentPage) + 1 
     : parseInt(currentPage) - 1;
 
-  // Create a new interaction with updated page
-  const newInteraction = {
-    commandName: 'leaderboard',
-    options: {
-      getString: (name: string, required: boolean) => name === 'team' ? teamOption : null,
-      getInteger: (name: string) => name === 'page' ? newPage : null
+  await interaction.deferUpdate();
+
+  try {
+    const itemsPerPage = 10;
+    const skip = (newPage - 1) * itemsPerPage;
+
+    // Get user's rank first
+    let rankQuery = supabase
+      .from("users")
+      .select("discord_id, points, team")
+      .not("discord_id", "in", `(${EXCLUDED_USER_IDS.join(",")})`)
+      .order("points", { ascending: false });
+
+    if (teamOption !== "all") {
+      rankQuery = rankQuery.eq("team", teamOption);
     }
-  };
 
-  // Delete the old message
-  await interaction.message.delete();
+    const { data: allUsers } = await rankQuery;
+    const userRank = allUsers?.findIndex(user => user.discord_id === interaction.user.id) ?? -1;
+    const userData = allUsers?.[userRank];
 
-  // Execute the leaderboard command with new page
-  await handleLeaderboard(newInteraction);
+    // Get paginated leaderboard data
+    let query = supabase
+      .from("users")
+      .select("discord_id, points, team", { count: "exact" })
+      .not("discord_id", "in", `(${EXCLUDED_USER_IDS.join(",")})`)
+      .order("points", { ascending: false });
+
+    if (teamOption !== "all") {
+      query = query.eq("team", teamOption);
+    }
+
+    const { data: leaderboardData, count, error } = await query
+      .range(skip, skip + itemsPerPage - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    const totalPages = Math.ceil((count || 0) / itemsPerPage);
+
+    const leaderboardEmbed = new EmbedBuilder()
+      .setColor(teamOption === "bullas" ? "#22C55E" : teamOption === "beras" ? "#EF4444" : "#FFD700");
+
+    // Add user's rank at the top with username
+    if (userRank !== -1 && userData) {
+      leaderboardEmbed.addFields({
+        name: "Your Rank",
+        value: `${userRank + 1}. ${userData.team === "bullas" ? "🐂" : "🐻"} ${interaction.user.username} • ${userData.points.toLocaleString()} mL`,
+        inline: false
+      });
+    }
+
+    // Add Leaderboard section with usernames
+    const leaderboardEntries = await Promise.all(
+      leaderboardData.map(async (entry, index) => {
+        const user = await client.users.fetch(entry.discord_id);
+        const position = skip + index + 1;
+        return `${position}. ${entry.team === "bullas" ? "🐂" : "🐻"} ${user.username} • ${entry.points.toLocaleString()} mL`;
+      })
+    );
+
+    leaderboardEmbed.addFields({
+      name: "🏆 Leaderboard",
+      value: leaderboardEntries.join('\n'),
+      inline: false
+    });
+
+    leaderboardEmbed.setFooter({ 
+      text: `Page ${newPage}/${totalPages}`
+    });
+
+    // Create pagination buttons
+    const row = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`prev_${teamOption}_${newPage}`)
+          .setLabel('Previous')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(newPage <= 1),
+        new ButtonBuilder()
+          .setCustomId(`next_${teamOption}_${newPage}`)
+          .setLabel('Next')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(newPage >= totalPages)
+      );
+
+    await interaction.editReply({
+      embeds: [leaderboardEmbed],
+      components: [row]
+    });
+  } catch (error) {
+    console.error("Error handling leaderboard pagination:", error);
+    await interaction.editReply({
+      content: "An error occurred while updating the leaderboard.",
+      components: []
+    });
+  }
 });
 client.login(discordBotToken);
 
