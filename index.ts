@@ -1170,7 +1170,7 @@ client.on("interactionCreate", async (interaction) => {
 });
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
-  if (!isAllowedChannel(interaction)) return;
+  if (!isAllowedChannel(interaction)) return; // dev channel
   const [action, teamOption, currentPage] = interaction.customId.split('_');
   if (action !== 'prev' && action !== 'next') return;
 
