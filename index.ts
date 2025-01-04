@@ -67,7 +67,7 @@ const ADMIN_ROLE_IDS = [
   "1234239721165815818",
   "880593522896539649", // TEST ADMIN ROLE FOR TEST DISCORD SERVER 
 ];
-
+const ALLOWED_CHANNEL_ID = "1324107250855575562"; //dev channel
 // Helper function to check if user has admin role
 function hasAdminRole(member: GuildMember | APIInteractionGuildMember | null) {
   if (
@@ -103,6 +103,16 @@ const BEAR_ROLE_ID = "1230207106896892006";
 let WHITELIST_MINIMUM = 100; // Initial minimum, can be updated
 
 // New function to get team points
+function isAllowedChannel(interaction: any) { //dev channel
+  if (interaction.channelId !== ALLOWED_CHANNEL_ID) {
+    interaction.reply({
+      content: "Commands can only be used in the designated channel.",
+      ephemeral: true
+    });
+    return false;
+  }
+  return true;
+} // dev channel
 async function getTeamPoints() {
   const [bullasData, berasData] = await Promise.all([
     supabase.rpc("sum_points_for_team", { team_name: "bullas" }),
@@ -382,7 +392,7 @@ client.once("ready", async () => {
 // Add a manual trigger for role updates (for testing)
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
-
+  if (!isAllowedChannel(interaction)) return; //dev channel
   if (interaction.commandName === "updateroles") {
     if (!hasAdminRole(interaction.member)) {
       await interaction.reply({
@@ -1001,6 +1011,7 @@ client.on("guildMemberAdd", async (member) => {
 // Modify the team selection logic in the button interaction handler
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isButton()) return;
+  if (!isAllowedChannel(interaction)) return; //dev channel
   if (!interaction.member || !interaction.guild) return;
 
   const BULL_ROLE_ID = "1230207362145452103";
@@ -1078,7 +1089,7 @@ client.on("interactionCreate", async (interaction) => {
 
 // Handle button interactions
 client.on("interactionCreate", async (interaction) => {
-  // Replace 'BULL_ROLE_ID' and 'BEAR_ROLE_ID' with the actual role IDs
+  if (!isAllowedChannel(interaction)) return; //dev channel
   const BULL_ROLE_ID = "1230207362145452103";
   const BEAR_ROLE_ID = "1230207106896892006";
   const member = interaction.member;
@@ -1159,7 +1170,7 @@ client.on("interactionCreate", async (interaction) => {
 });
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
-
+  if (!isAllowedChannel(interaction)) return;
   const [action, teamOption, currentPage] = interaction.customId.split('_');
   if (action !== 'prev' && action !== 'next') return;
 
