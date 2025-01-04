@@ -294,6 +294,9 @@ const commands = [
     .setName("warstatus")
     .setDescription("Check the current war status"),
   new SlashCommandBuilder()
+     .setName("updatewallet")
+    .setDescription("Update your wallet address"),
+  new SlashCommandBuilder()
     .setName("leaderboard")
     .setDescription("View the leaderboard")
     .addStringOption(option =>
@@ -524,6 +527,43 @@ client.on("interactionCreate", async (interaction) => {
       const vercelUrl = `${process.env.VERCEL_URL}/game?token=${uuid}&discord=${userId}`;
       await interaction.reply({
         content: `Hey ${interaction.user.username}, to link your Discord account to your address click this link: \n\n${vercelUrl} `,
+        ephemeral: true,
+      });
+    }
+  }
+  if (interaction.commandName === "updatewallet") {
+    const userId = interaction.user.id;
+    const uuid = v4();
+  
+    const { data: userData } = await supabase
+      .from("users")
+      .select("*")
+      .eq("discord_id", userId)
+      .single();
+  
+    if (!userData) {
+      await interaction.reply({
+        content: "You need to link your account first. Use /wankme to get started.",
+        ephemeral: true,
+      });
+      return;
+    }
+  
+    const { error } = await supabase
+      .from("tokens")
+      .insert({ token: uuid, discord_id: userId, used: false })
+      .single();
+  
+    if (error) {
+      console.error("Error inserting token:", error);
+      await interaction.reply({
+        content: "An error occurred while generating the token.",
+        ephemeral: true,
+      });
+    } else {
+      const vercelUrl = `${process.env.VERCEL_URL}/update-wallet?token=${uuid}&discord=${userId}`;
+      await interaction.reply({
+        content: `Hey ${interaction.user.username}, to update your wallet address, click this link:\n\n${vercelUrl}`,
         ephemeral: true,
       });
     }
