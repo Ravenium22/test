@@ -128,7 +128,7 @@ async function getTopPlayers(team: string, limit: number) {
   return data;
 }
 
-// New function to create CSV content
+// New optimized function to create CSV content
 async function createCSV(data: any[], includeDiscordId: boolean = false, guild: Guild) {
   const header = includeDiscordId
     ? "discord_id,address,points,wl_role,ml_role,free_mint_role\n"
@@ -137,9 +137,19 @@ async function createCSV(data: any[], includeDiscordId: boolean = false, guild: 
   const WL_WINNER_ROLE_ID = "1264963781419597916";
   const ML_WINNER_ROLE_ID = "1267532607491407933";
 
-  // Use Promise.all to wait for all member fetches
-  const rows = await Promise.all(data.map(async (user) => {
-    const member = await guild.members.fetch(user.discord_id).catch(() => null);
+  // Fetch all members at once
+  const memberIds = data.map(user => user.discord_id).filter(Boolean);
+  const membersMap = new Map();
+  
+  try {
+    const members = await guild.members.fetch({ user: memberIds });
+    members.forEach(member => membersMap.set(member.id, member));
+  } catch (error) {
+    console.error("Error fetching members:", error);
+  }
+
+  const rows = data.map(user => {
+    const member = membersMap.get(user.discord_id);
     const hasWL = member?.roles.cache.has(WHITELIST_ROLE_ID) || member?.roles.cache.has(WL_WINNER_ROLE_ID) ? "Y" : "N";
     const hasML = member?.roles.cache.has(MOOLALIST_ROLE_ID) || member?.roles.cache.has(ML_WINNER_ROLE_ID) ? "Y" : "N";
     const hasFreeMint = member?.roles.cache.has(FREE_MINT_ROLE_ID) ? "Y" : "N";
@@ -147,7 +157,7 @@ async function createCSV(data: any[], includeDiscordId: boolean = false, guild: 
     return includeDiscordId
       ? `${user.discord_id},${user.address},${user.points},${hasWL},${hasML},${hasFreeMint}`
       : `${user.address},${user.points},${hasWL},${hasML},${hasFreeMint}`;
-  }));
+  });
 
   return header + rows.join("\n");
 }
