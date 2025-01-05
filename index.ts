@@ -82,7 +82,7 @@ const ADMIN_ROLE_IDS = [
   "1234239721165815818",
   "880593522896539649", // TEST ADMIN ROLE FOR TEST DISCORD SERVER 
 ];
-const ALLOWED_CHANNEL_ID = "1324107250855575562"; //dev channel
+cconst ALLOWED_CHANNEL_IDS = ["1324107250855575562"]; //dev channel
 // Helper function to check if user has admin role
 function hasAdminRole(member: GuildMember | APIInteractionGuildMember | null) {
   if (
@@ -119,11 +119,11 @@ let WHITELIST_MINIMUM = 100; // Initial minimum, can be updated
 
 // New function to get team points
 // isAllowedChannel function
-async function isAllowedChannel(interaction: any) {
+function isAllowedChannel(interaction: any) {
   if (!ALLOWED_CHANNEL_IDS.includes(interaction.channelId)) {
     try {
       if (!interaction.deferred && !interaction.replied) {
-        await interaction.reply({
+        interaction.reply({
           content: "Commands can only be used in the designated channel.",
           ephemeral: true
         }).catch(error => {
