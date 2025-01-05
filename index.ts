@@ -97,8 +97,8 @@ function hasAdminRole(member: GuildMember | APIInteractionGuildMember | null) {
   return false;
 }
 export const maskAddress = (address: string) => {
-  if (!address || address.length < 6) return address;
-  return `${address.slice(0, 2)}...${address.slice(-4)}`;
+  if (!address || address.length < 8) return address;
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 // Excludements for leaderboard
 const EXCLUDED_USER_IDS = [
