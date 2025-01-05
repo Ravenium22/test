@@ -852,7 +852,7 @@ client.on("interactionCreate", async (interaction) => {
 
     // Defer the reply immediately to prevent timeout
     await interaction.deferReply({ ephemeral: true });
-    try {
+  
     try {
       const guild = interaction.guild;
       if (!guild) {
