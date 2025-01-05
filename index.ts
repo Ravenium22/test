@@ -842,18 +842,17 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   if (interaction.commandName === "snapshot") {
+    if (!hasAdminRole(interaction.member)) {
+      await interaction.reply({
+        content: "You don't have permission to use this command.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    // Defer the reply immediately to prevent timeout
+    await interaction.deferReply({ ephemeral: true });
     try {
-      if (!hasAdminRole(interaction.member)) {
-        await interaction.reply({
-          content: "You don't have permission to use this command.",
-          ephemeral: true,
-        });
-        return;
-      }
-
-      // Defer the reply immediately to prevent timeout
-      await interaction.deferReply({ ephemeral: true });
-
     try {
       const guild = interaction.guild;
       if (!guild) {
