@@ -82,7 +82,7 @@ const ADMIN_ROLE_IDS = [
   "1234239721165815818",
   "880593522896539649", // TEST ADMIN ROLE FOR TEST DISCORD SERVER 
 ];
-cconst ALLOWED_CHANNEL_IDS = ["1324107250855575562"]; //dev channel
+const ALLOWED_CHANNEL_IDS = ["1324107250855575562"]; //dev channel
 // Helper function to check if user has admin role
 function hasAdminRole(member: GuildMember | APIInteractionGuildMember | null) {
   if (
