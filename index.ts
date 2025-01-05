@@ -56,7 +56,15 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildPresences,
   ],
+  presence: {
+    status: 'online',
+    activities: [{
+      name: 'moola war',
+      type: 0
+    }]
+  }
 });
 
 // Define permissioned roles
@@ -372,6 +380,13 @@ const commands = [
 
 client.once("ready", async () => {
   console.log("Bot is ready!");
+  client.user?.setPresence({
+    status: 'online',
+    activities: [{
+      name: 'moola war',
+      type: 0 // Playing
+    }]
+  });
 
   // Register slash commands
   const rest = new REST({ version: "10" }).setToken(discordBotToken!);
@@ -1001,13 +1016,13 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 // Add this function to handle new member joins
-client.on("guildMemberAdd", async (member) => {
-  const mootardRole = member.guild.roles.cache.get(MOOTARD_ROLE_ID);
-  if (mootardRole) {
-    await member.roles.add(mootardRole);
-    console.log(`Added Mootard role to new member: ${member.user.tag}`);
-  }
-});
+// client.on("guildMemberAdd", async (member) => {
+//   const mootardRole = member.guild.roles.cache.get(MOOTARD_ROLE_ID);
+//   if (mootardRole) {
+//     await member.roles.add(mootardRole);
+//     console.log(`Added Mootard role to new member: ${member.user.tag}`);
+//   }
+// });
 
 // Modify the team selection logic in the button interaction handler
 client.on("interactionCreate", async (interaction) => {
@@ -1287,7 +1302,16 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 });
+// Add heartbeat check
+setInterval(() => {
+  if (!client.ws.ping) {
+    console.log('Connection lost, attempting to reconnect...');
+    client.login(discordBotToken);
+  }
+}, 30000); // Check every 30 seconds
+
 client.login(discordBotToken);
+
 
 /*
 #############################################
