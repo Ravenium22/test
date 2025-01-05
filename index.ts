@@ -66,6 +66,13 @@ const client = new Client({
     }]
   }
 });
+client.on('error', error => {
+  console.error('Discord client error:', error);
+});
+
+process.on('unhandledRejection', error => {
+  console.error('Unhandled promise rejection:', error);
+});
 
 // Define permissioned roles
 const ADMIN_ROLE_IDS = [
@@ -111,12 +118,21 @@ const BEAR_ROLE_ID = "1230207106896892006";
 let WHITELIST_MINIMUM = 100; // Initial minimum, can be updated
 
 // New function to get team points
-function isAllowedChannel(interaction: any) { //dev channel
-  if (interaction.channelId !== ALLOWED_CHANNEL_ID) {
-    interaction.reply({
-      content: "Commands can only be used in the designated channel.",
-      ephemeral: true
-    });
+// isAllowedChannel function
+async function isAllowedChannel(interaction: any) {
+  if (!ALLOWED_CHANNEL_IDS.includes(interaction.channelId)) {
+    try {
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.reply({
+          content: "Commands can only be used in the designated channel.",
+          ephemeral: true
+        }).catch(error => {
+          console.error("Failed to send channel restriction message:", error);
+        });
+      }
+    } catch (error) {
+      console.error("Error in isAllowedChannel:", error);
+    }
     return false;
   }
   return true;
@@ -146,7 +162,7 @@ async function getTopPlayers(team: string, limit: number) {
   return data;
 }
 
-// New optimized function to create CSV content
+// NEW createCSV function
 async function createCSV(data: any[], includeDiscordId: boolean = false, guild: Guild) {
   const header = includeDiscordId
     ? "discord_id,address,points,wl_role,ml_role,free_mint_role\n"
@@ -155,15 +171,21 @@ async function createCSV(data: any[], includeDiscordId: boolean = false, guild: 
   const WL_WINNER_ROLE_ID = "1264963781419597916";
   const ML_WINNER_ROLE_ID = "1267532607491407933";
 
-  // Fetch all members at once
+  // New batched fetching approach
   const memberIds = data.map(user => user.discord_id).filter(Boolean);
   const membersMap = new Map();
   
-  try {
-    const members = await guild.members.fetch({ user: memberIds });
-    members.forEach(member => membersMap.set(member.id, member));
-  } catch (error) {
-    console.error("Error fetching members:", error);
+  // Fetch members in batches of 50
+  for (let i = 0; i < memberIds.length; i += 50) {
+    const batch = memberIds.slice(i, i + 50);
+    try {
+      const members = await guild.members.fetch({ user: batch });
+      members.forEach(member => membersMap.set(member.id, member));
+      // Add a small delay between batches
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.error(`Error fetching batch ${i}-${i+50}:`, error);
+    }
   }
 
   const rows = data.map(user => {
