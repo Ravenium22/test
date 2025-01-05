@@ -729,6 +729,7 @@ client.on("interactionCreate", async (interaction) => {
     await interaction.reply({
       embeds: [embed],
       components: [actionRow as any],
+      ephemeral: true
     });
   }
 
